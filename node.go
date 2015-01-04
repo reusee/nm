@@ -78,3 +78,17 @@ func (n *Node) Index() (ret int) {
 	}
 	return
 }
+
+func (n *Node) TagPath() []string {
+	node := n
+	var path []string
+	for node.Tag != "ROOT" {
+		path = append(path, node.Tag)
+		node = node.Parent
+	}
+	for i := 0; i < len(path)/2; i++ {
+		j := len(path) - 1 - i
+		path[i], path[j] = path[j], path[i]
+	}
+	return path
+}
