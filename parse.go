@@ -9,7 +9,7 @@ import (
 	"code.google.com/p/go.net/html"
 )
 
-func Parse(r io.Reader) (*Node, error) {
+func Parse(r io.Reader) ([]*Node, error) {
 	root := &Node{
 		Tag:    "ROOT",
 		rawBuf: new(bytes.Buffer),
@@ -95,7 +95,7 @@ parse:
 	}
 	root.Raw = string(root.rawBuf.Bytes())
 
-	return root, nil
+	return root.Children, nil
 }
 
 func (n *Node) collectIdAndClass() {
@@ -109,10 +109,10 @@ func (n *Node) collectIdAndClass() {
 	}
 }
 
-func ParseString(s string) (*Node, error) {
+func ParseString(s string) ([]*Node, error) {
 	return Parse(strings.NewReader(s))
 }
 
-func ParseBytes(bs []byte) (*Node, error) {
+func ParseBytes(bs []byte) ([]*Node, error) {
 	return Parse(bytes.NewReader(bs))
 }

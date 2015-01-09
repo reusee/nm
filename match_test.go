@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-var testNode *Node
+var testNodes []*Node
 
 func TestMain(m *testing.M) {
 	f, err := os.Open("qq.html")
 	if err != nil {
 		log.Fatal(err)
 	}
-	testNode, err = Parse(f)
+	testNodes, err = Parse(f)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestSequence(t *testing.T) {
 		}, 0, 0},
 		{Ok, nil, 0, 0},
 	})
-	for _, node := range testNode.Children {
+	for _, node := range testNodes {
 		res := Match(node, program)
 		for _, n := range res {
 			if strings.Join(n.TagPath(), "|") != "html|body|div" {
@@ -59,7 +59,7 @@ func TestOr(t *testing.T) {
 		}, 0, 0},
 		{Ok, nil, 0, 0},
 	})
-	for _, node := range testNode.Children {
+	for _, node := range testNodes {
 		res := Match(node, program)
 		if len(res) != 2 {
 			t.Fatal("match")
@@ -78,7 +78,7 @@ func TestZeroOrOne(t *testing.T) {
 		}, 0, 0},
 		{Ok, nil, 0, 0},
 	})
-	for _, node := range testNode.Children {
+	for _, node := range testNodes {
 		res := Match(node, program)
 		if len(res) != 2 {
 			t.Fatal("match")
@@ -98,7 +98,7 @@ func TestZeroOrMany(t *testing.T) {
 		{Jump, nil, 1, 0},
 		{Ok, nil, 0, 0},
 	})
-	for _, node := range testNode.Children {
+	for _, node := range testNodes {
 		res := Match(node, program)
 		if len(res) != 3 {
 			t.Fatal("match")
@@ -120,7 +120,7 @@ func TestOneOrMany(t *testing.T) {
 		{Split, nil, 2, 4},
 		{Ok, nil, 0, 0},
 	})
-	for _, node := range testNode.Children {
+	for _, node := range testNodes {
 		res := Match(node, program)
 		for _, r := range res {
 			tagPath := r.TagPath()
