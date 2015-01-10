@@ -51,6 +51,94 @@ var lexTestCases = []struct {
 		item{what: itemLeftBracket},
 		item{what: itemRightBracket},
 	}},
+	{"[id", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+	}},
+	{"[ id", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+	}},
+	{"[ id=", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("=")},
+	}},
+	{"[id=id2", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("=")},
+		item{what: itemString, text: []rune("id2")},
+	}},
+	{"[id equals id2", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("equals")},
+		item{what: itemString, text: []rune("id2")},
+	}},
+	{"[id equals \"id2\"", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("equals")},
+		item{what: itemString, text: []rune("id2")},
+	}},
+	{"[id equals 'id2'", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("equals")},
+		item{what: itemString, text: []rune("id2")},
+	}},
+	{"[id equals `id2`", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("equals")},
+		item{what: itemString, text: []rune("id2")},
+	}},
+	{"[id exists", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("exists")},
+	}},
+	{"[id exists,", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("exists")},
+	}},
+	{"[ id exists, ", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("exists")},
+	}},
+	{"[ id exists, class exists", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("exists")},
+		item{what: itemAttr, text: []rune("class")},
+		item{what: itemOp, text: []rune("exists")},
+	}},
+	{"[ id exists, class exists]", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("exists")},
+		item{what: itemAttr, text: []rune("class")},
+		item{what: itemOp, text: []rune("exists")},
+		item{what: itemRightBracket},
+	}},
+	{"[ id exists, class exists ]", []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("id")},
+		item{what: itemOp, text: []rune("exists")},
+		item{what: itemAttr, text: []rune("class")},
+		item{what: itemOp, text: []rune("exists")},
+		item{what: itemRightBracket},
+	}},
+	{`[foo="\t\n \r\b\f\\"]`, []item{
+		item{what: itemLeftBracket},
+		item{what: itemAttr, text: []rune("foo")},
+		item{what: itemOp, text: []rune("=")},
+		item{what: itemString, text: []rune("\t\n \r\b\f\\")},
+		item{what: itemRightBracket},
+	}},
 }
 
 var lexFailTestCases = []struct {
@@ -61,6 +149,9 @@ var lexFailTestCases = []struct {
 	{".foo#", "invalid id at pos 5"},
 	{"#id.", "invalid class at pos 4"},
 	{"[[", "invalid char at pos 1"},
+	{"[id]", "invalid char at pos 3"},
+	{`[foo='`, "invalid string at pos 6"},
+	{"[foo=`", "invalid string at pos 6"},
 }
 
 func TestLexer(t *testing.T) {
@@ -70,7 +161,7 @@ func TestLexer(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !itemsMatch(items, c.items) {
-			t.Fatalf("not match: %s", c.str)
+			t.Fatalf("not match: %s, expecting %v, got %v", c.str, c.items, items)
 		}
 	}
 }

@@ -56,6 +56,9 @@ const (
 	itemTag
 	itemLeftBracket
 	itemRightBracket
+	itemAttr
+	itemOp
+	itemString
 )
 
 type lexError struct {
@@ -152,20 +155,6 @@ func lexClass(s *lexState) lexer {
 	panic("invalid class")
 }
 
-func lexConstraint(s *lexState) lexer {
-	cur := s.cur()
-	if cur == eof {
-		return nil
-	}
-	switch cur {
-	case ']':
-		s.append(item{what: itemRightBracket})
-		s.n++
-		return lexItem
-	}
-	panic("invalid char")
-}
-
 func isTagChar(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
@@ -177,4 +166,177 @@ func lexTag(s *lexState) lexer {
 		s.append(item{what: itemTag, text: s.text[start:s.n]})
 	}
 	return lexItem
+}
+
+func lexConstraint(s *lexState) lexer {
+	cur := s.cur()
+	if cur == eof {
+		return nil
+	}
+	switch cur {
+	case ']':
+		s.append(item{what: itemRightBracket})
+		s.n++
+		return lexItem
+	}
+	if isAttrChar(cur) {
+		return lexAttr
+	} else if unicode.IsSpace(cur) {
+		s.n++
+		return lexConstraint
+	}
+	panic("invalid char")
+}
+
+var isAttrChar = isIdChar
+
+func lexAttr(s *lexState) lexer {
+	start := s.n
+	s.nextWhile(isAttrChar)
+	if s.n > start {
+		s.append(item{what: itemAttr, text: s.text[start:s.n]})
+	}
+	return lexOp
+}
+
+func isPunctOpChar(r rune) bool {
+	switch r {
+	case '=', '~', '!', '@', '#', '%', '^', '&', '*', '-', '+', '|', '/', '<', '>', '?':
+		return true
+	}
+	return false
+}
+
+func isLetterOpChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+func lexOp(s *lexState) lexer {
+	cur := s.cur()
+	if cur == eof {
+		return nil
+	} else if unicode.IsSpace(cur) {
+		s.n++
+		return lexOp
+	}
+	var predict func(rune) bool
+	if isPunctOpChar(cur) {
+		predict = isPunctOpChar
+	} else if isLetterOpChar(cur) {
+		predict = isLetterOpChar
+	} else {
+		panic("invalid char")
+	}
+	start := s.n
+	s.nextWhile(predict)
+	if s.n > start {
+		s.append(item{what: itemOp, text: s.text[start:s.n]})
+	}
+	return lexValue
+}
+
+func lexValue(s *lexState) lexer {
+	cur := s.cur()
+	if unicode.IsSpace(cur) {
+		s.n++
+		return lexValue
+	}
+	switch cur {
+	case eof:
+		return nil
+	case '"':
+		return lexDoubleQuotedString
+	case '\'':
+		return lexSingleQuotedString
+	case '`':
+		return lexBackQuotedString
+	case ',':
+		s.n++
+		return lexConstraint
+	case ']':
+		return lexConstraint
+		//case '{': TODO
+		//	return lexList
+	}
+	return lexUnquotedString
+}
+
+func makeStringLexer(delim rune) lexer {
+	return func(s *lexState) lexer {
+		var str []rune
+	end:
+		for {
+			s.n++
+			cur := s.cur()
+			switch cur {
+			case '\\': // escape
+				s.n++
+				c := s.cur()
+				switch c {
+				case 't':
+					str = append(str, '\t')
+				case 'n':
+					str = append(str, '\n')
+				case 'r':
+					str = append(str, '\r')
+				case 'b':
+					str = append(str, '\b')
+				case 'f':
+					str = append(str, '\f')
+				default:
+					str = append(str, c)
+				}
+			case delim: // end
+				s.n++
+				break end
+			case eof:
+				panic("invalid string")
+			default:
+				str = append(str, cur)
+			}
+		}
+		s.append(item{what: itemString, text: str})
+		return lexConstraint
+	}
+}
+
+var lexSingleQuotedString, lexDoubleQuotedString lexer
+
+func init() {
+	lexSingleQuotedString = makeStringLexer('\'')
+	lexDoubleQuotedString = makeStringLexer('"')
+}
+
+func lexBackQuotedString(s *lexState) lexer {
+	start := s.n + 1
+end:
+	for {
+		s.n++
+		cur := s.cur()
+		switch cur {
+		case eof:
+			panic("invalid string")
+		case '`':
+			break end
+		}
+	}
+	s.append(item{what: itemString, text: s.text[start:s.n]})
+	s.n++
+	return lexConstraint
+}
+
+func isUnquotedStringChar(r rune) bool {
+	return !unicode.IsSpace(r) && r != ',' && r != ']'
+}
+
+func lexUnquotedString(s *lexState) lexer {
+	start := s.n
+	s.nextWhile(isUnquotedStringChar)
+	s.append(item{what: itemString, text: []rune(s.text[start:s.n])})
+	return lexConstraint
+}
+
+func lexList(s *lexState) lexer {
+	//TODO
+	return nil
 }
