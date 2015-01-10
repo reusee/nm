@@ -19,6 +19,11 @@ var lexTestCases = []struct {
 		item{what: itemTag, text: []rune("html")},
 		item{what: itemTag, text: []rune("head")},
 	}},
+	{"html body div", []item{
+		item{what: itemTag, text: []rune("html")},
+		item{what: itemTag, text: []rune("body")},
+		item{what: itemTag, text: []rune("div")},
+	}},
 	{"#id1 #id2", []item{
 		item{what: itemId, text: []rune("id1")},
 		item{what: itemId, text: []rune("id2")},
@@ -139,6 +144,23 @@ var lexTestCases = []struct {
 		item{what: itemString, text: []rune("\t\n \r\b\f\\")},
 		item{what: itemRightBracket},
 	}},
+	{`html (head | body)`, []item{
+		item{what: itemTag, text: []rune("html")},
+		item{what: itemLeftParen},
+		item{what: itemTag, text: []rune("head")},
+		item{what: itemExprOp, text: []rune("|")},
+		item{what: itemTag, text: []rune("body")},
+		item{what: itemRightParen},
+	}},
+	{`html (head | body div)`, []item{
+		item{what: itemTag, text: []rune("html")},
+		item{what: itemLeftParen},
+		item{what: itemTag, text: []rune("head")},
+		item{what: itemExprOp, text: []rune("|")},
+		item{what: itemTag, text: []rune("body")},
+		item{what: itemTag, text: []rune("div")},
+		item{what: itemRightParen},
+	}},
 }
 
 var lexFailTestCases = []struct {
@@ -158,7 +180,7 @@ func TestLexer(t *testing.T) {
 	for _, c := range lexTestCases {
 		items, err := lex(c.str)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%v: %s", err, c.str)
 		}
 		if !itemsMatch(items, c.items) {
 			t.Fatalf("not match: %s, expecting %v, got %v", c.str, c.items, items)

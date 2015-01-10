@@ -59,6 +59,7 @@ const (
 	itemAttr
 	itemOp
 	itemString
+	itemExprOp
 )
 
 type lexError struct {
@@ -111,6 +112,10 @@ func lexItem(s *lexState) lexer {
 		s.append(item{what: itemLeftBracket})
 		s.n++
 		return lexConstraint
+	case '|', '?', '*', '+':
+		s.append(item{what: itemExprOp, text: []rune{cur}})
+		s.n++
+		return lexItem
 	case eof:
 		return nil
 	}
@@ -254,7 +259,9 @@ func lexValue(s *lexState) lexer {
 		s.n++
 		return lexConstraint
 	case ']':
-		return lexConstraint
+		s.append(item{what: itemRightBracket})
+		s.n++
+		return lexItem
 		//case '{': TODO
 		//	return lexList
 	}
@@ -336,7 +343,9 @@ func lexUnquotedString(s *lexState) lexer {
 	return lexConstraint
 }
 
+/*
 func lexList(s *lexState) lexer {
 	//TODO
 	return nil
 }
+*/
