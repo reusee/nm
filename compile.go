@@ -35,8 +35,8 @@ func init() {
 	))
 
 	set.Add("predict", set.OrdChoice(
-		set.NamedConcat("predict-with-attr", "basic-predict",
-			set.NamedRepeat("attrs", 0, -1, "attr-predict")),
+		set.NamedConcat("predict-with-attr",
+			set.Repeat(1, -1, "basic-predict"), set.Repeat(0, 1, "attr-predict")),
 		"attr-predict"))
 	set.Add("basic-predict", set.OrdChoice(
 		"id-predict", "class-predict", "tag-predict"))
