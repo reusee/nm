@@ -36,12 +36,15 @@ func init() {
 
 	set.Add("predict", set.OrdChoice(
 		set.NamedConcat("predict-with-attr",
-			set.Repeat(1, -1, "basic-predict"), set.Repeat(0, 1, "attr-predict")),
+			set.NamedRepeat("basic-predicts", 1, -1, "basic-predict"),
+			set.NamedRepeat("option-attr-predict", 0, 1, "attr-predict")),
 		"attr-predict"))
 	set.Add("basic-predict", set.OrdChoice(
 		"id-predict", "class-predict", "tag-predict"))
 	set.Add("attr-predict", set.Concat(
-		set.Regex(`\[`), set.Repeat(0, 1, "attr-expr"), set.Regex(`\]`)))
+		set.Regex(`\[`),
+		set.NamedRepeat("option-attr-expr", 0, 1, "attr-expr"),
+		set.Regex(`\]`)))
 	set.Add("identifier", set.Regex(`[a-zA-Z0-9-_]+`))
 	set.Add("id-predict", set.Concat(set.Rune('#'), "identifier"))
 	set.Add("class-predict", set.Concat(set.Rune('.'), "identifier"))
@@ -74,10 +77,129 @@ func Compile(code string) (Program, error) {
 		return nil, fmt.Errorf("invalid expression")
 	}
 	if l != len(code) {
-		pt("%d\n", l)
 		node.Dump(os.Stdout, input)
 		return nil, fmt.Errorf("invalid expression")
 	}
-	node.Dump(os.Stdout, input)
+	node = simplify(node)
+	//node.Dump(os.Stdout, input)
+	ast := genAst(node, input)
+	//ast.dump(0)
+	return genProgram(ast)
+}
+
+func simplify(node *paza.Node) (ret *paza.Node) {
+	for len(node.Subs) == 1 {
+		sub := node.Subs[0]
+		if node.Start == sub.Start && node.Len == sub.Len {
+			node = sub
+		}
+	}
+	for i, sub := range node.Subs {
+		node.Subs[i] = simplify(sub)
+	}
+	return node
+}
+
+type Ast struct {
+	Op      astOp
+	Left    *Ast
+	Right   *Ast
+	Predict func(*Node) bool
+}
+
+type astOp int
+
+const (
+	opConcat astOp = iota
+	opPredict
+	opStar
+)
+
+func genAst(node *paza.Node, input *paza.Input) *Ast {
+	switch node.Name {
+	case "concat-expr":
+		return &Ast{
+			Op:    opConcat,
+			Left:  genAst(node.Subs[0], input),
+			Right: genAst(node.Subs[2], input),
+		}
+	case "predict-with-attr":
+		p1 := genPredict(node.Subs[0], input)
+		p2 := genPredict(node.Subs[1], input)
+		return &Ast{
+			Op: opPredict,
+			Predict: func(node *Node) bool {
+				return p1(node) && p2(node)
+			},
+		}
+	case "star-expr":
+		return &Ast{
+			Op:   opStar,
+			Left: genAst(node.Subs[0], input),
+		}
+	case "attr-predict":
+		p := genPredict(node.Subs[1], input)
+		return &Ast{
+			Op:      opPredict,
+			Predict: p,
+		}
+	default:
+		panic("not handle parse node " + node.Name)
+	}
+	return nil
+}
+
+func truePredict(node *Node) bool {
+	return true
+}
+
+func genPredict(node *paza.Node, input *paza.Input) func(node *Node) bool {
+	switch node.Name {
+	case "identifier": // tag
+		tag := string(input.Text[node.Start : node.Start+node.Len])
+		return func(n *Node) bool {
+			return n.Tag == tag
+		}
+	case "option-attr-predict", "option-attr-expr":
+		if len(node.Subs) > 0 {
+			return genPredict(node.Subs[0], input)
+		} else {
+			return truePredict
+		}
+	case "basic-predicts":
+		var predicts []func(*Node) bool
+		for _, sub := range node.Subs {
+			predicts = append(predicts, genPredict(sub, input))
+		}
+		return func(n *Node) bool {
+			for _, predict := range predicts {
+				if !predict(n) {
+					return false
+				}
+			}
+			return true
+		}
+	case "id-predict":
+		id := string(input.Text[node.Start+1 : node.Start+node.Len])
+		return func(n *Node) bool {
+			return n.Id == id
+		}
+	case "class-predict":
+		class := string(input.Text[node.Start+1 : node.Start+node.Len])
+		return func(n *Node) bool {
+			for _, cls := range n.Class {
+				if cls == class {
+					return true
+				}
+			}
+			return false
+		}
+	default:
+		panic("not handle predict node " + node.Name)
+	}
+	return nil
+}
+
+func genProgram(ast *Ast) (Program, error) {
 	return nil, nil
 }
