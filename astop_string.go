@@ -4,9 +4,9 @@ package nm
 
 import "fmt"
 
-const _astOp_name = "opConcatopPredictopStar"
+const _astOp_name = "opConcatopPredictopStaropOropOptionopPlus"
 
-var _astOp_index = [...]uint8{0, 8, 17, 23}
+var _astOp_index = [...]uint8{0, 8, 17, 23, 27, 35, 41}
 
 func (i astOp) String() string {
 	if i < 0 || i+1 >= astOp(len(_astOp_index)) {

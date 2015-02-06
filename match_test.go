@@ -22,18 +22,21 @@ func TestMain(m *testing.M) {
 }
 
 func TestSequence(t *testing.T) {
-	program := Program([]Inst{
-		{Predict, func(node *Node) bool {
-			return node.Tag == "html"
-		}, 0, 0},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "body"
-		}, 0, 0},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "div"
-		}, 0, 0},
-		{Ok, nil, 0, 0},
-	})
+	/*
+		program := Program([]Inst{
+			{Predict, func(node *Node) bool {
+				return node.Tag == "html"
+			}, 0, 0},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "body"
+			}, 0, 0},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "div"
+			}, 0, 0},
+			{Ok, nil, 0, 0},
+		})
+	*/
+	program := Compile(`html body div`)
 	for _, node := range testNodes {
 		res := Match(node, program)
 		for _, n := range res {
@@ -45,20 +48,23 @@ func TestSequence(t *testing.T) {
 }
 
 func TestOr(t *testing.T) {
-	program := Program([]Inst{
-		{Predict, func(node *Node) bool {
-			return node.Tag == "html"
-		}, 0, 0},
-		{Split, nil, 2, 4},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "head"
-		}, 0, 0},
-		{Jump, nil, 5, 0},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "body"
-		}, 0, 0},
-		{Ok, nil, 0, 0},
-	})
+	/*
+		program := Program([]Inst{
+			{Predict, func(node *Node) bool {
+				return node.Tag == "html"
+			}, 0, 0},
+			{Split, nil, 2, 4},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "head"
+			}, 0, 0},
+			{Jump, nil, 5, 0},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "body"
+			}, 0, 0},
+			{Ok, nil, 0, 0},
+		})
+	*/
+	program := Compile(`html (head|body)`)
 	for _, node := range testNodes {
 		res := Match(node, program)
 		if len(res) != 2 {
@@ -68,16 +74,19 @@ func TestOr(t *testing.T) {
 }
 
 func TestZeroOrOne(t *testing.T) {
-	program := Program([]Inst{
-		{Predict, func(node *Node) bool {
-			return node.Tag == "html"
-		}, 0, 0},
-		{Split, nil, 2, 3},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "head"
-		}, 0, 0},
-		{Ok, nil, 0, 0},
-	})
+	/*
+		program := Program([]Inst{
+			{Predict, func(node *Node) bool {
+				return node.Tag == "html"
+			}, 0, 0},
+			{Split, nil, 2, 3},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "head"
+			}, 0, 0},
+			{Ok, nil, 0, 0},
+		})
+	*/
+	program := Compile(`html head?`)
 	for _, node := range testNodes {
 		res := Match(node, program)
 		if len(res) != 2 {
@@ -87,17 +96,20 @@ func TestZeroOrOne(t *testing.T) {
 }
 
 func TestZeroOrMany(t *testing.T) {
-	program := Program([]Inst{
-		{Predict, func(node *Node) bool {
-			return node.Tag == "html"
-		}, 0, 0},
-		{Split, nil, 2, 4},
-		{Predict, func(node *Node) bool {
-			return true
-		}, 0, 0},
-		{Jump, nil, 1, 0},
-		{Ok, nil, 0, 0},
-	})
+	/*
+		program := Program([]Inst{
+			{Predict, func(node *Node) bool {
+				return node.Tag == "html"
+			}, 0, 0},
+			{Split, nil, 2, 4},
+			{Predict, func(node *Node) bool {
+				return true
+			}, 0, 0},
+			{Jump, nil, 1, 0},
+			{Ok, nil, 0, 0},
+		})
+	*/
+	program := Compile(`html []*`)
 	for _, node := range testNodes {
 		res := Match(node, program)
 		if len(res) != 3 {
@@ -107,19 +119,22 @@ func TestZeroOrMany(t *testing.T) {
 }
 
 func TestOneOrMany(t *testing.T) {
-	program := Program([]Inst{
-		{Predict, func(node *Node) bool {
-			return node.Tag == "html"
-		}, 0, 0},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "body"
-		}, 0, 0},
-		{Predict, func(node *Node) bool {
-			return node.Tag == "div"
-		}, 0, 0},
-		{Split, nil, 2, 4},
-		{Ok, nil, 0, 0},
-	})
+	/*
+		program := Program([]Inst{
+			{Predict, func(node *Node) bool {
+				return node.Tag == "html"
+			}, 0, 0},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "body"
+			}, 0, 0},
+			{Predict, func(node *Node) bool {
+				return node.Tag == "div"
+			}, 0, 0},
+			{Split, nil, 2, 4},
+			{Ok, nil, 0, 0},
+		})
+	*/
+	program := Compile(`html body div+`)
 	for _, node := range testNodes {
 		res := Match(node, program)
 		for _, r := range res {

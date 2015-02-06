@@ -1,7 +1,6 @@
 package nm
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/reusee/paza"
@@ -70,21 +69,23 @@ func init() {
 			"text")))
 }
 
-func Compile(code string) (Program, error) {
+func Compile(code string) Program {
 	input := paza.NewInput([]byte(code))
 	ok, l, node := set.Call("expr", input, 0)
 	if !ok {
-		return nil, fmt.Errorf("invalid expression")
+		panic("invalid expression")
 	}
 	if l != len(code) {
 		node.Dump(os.Stdout, input)
-		return nil, fmt.Errorf("invalid expression")
+		panic("invalid expression")
 	}
 	node = simplify(node)
 	//node.Dump(os.Stdout, input)
 	ast := genAst(node, input)
 	//ast.dump(0)
-	return genProgram(ast)
+	program := genProgram(ast, 0)
+	program = append(program, Inst{Ok, nil, 0, 0})
+	return program
 }
 
 func simplify(node *paza.Node) (ret *paza.Node) {
@@ -113,6 +114,9 @@ const (
 	opConcat astOp = iota
 	opPredict
 	opStar
+	opOr
+	opOption
+	opPlus
 )
 
 func genAst(node *paza.Node, input *paza.Input) *Ast {
@@ -137,11 +141,29 @@ func genAst(node *paza.Node, input *paza.Input) *Ast {
 			Op:   opStar,
 			Left: genAst(node.Subs[0], input),
 		}
+	case "option-expr":
+		return &Ast{
+			Op:   opOption,
+			Left: genAst(node.Subs[0], input),
+		}
+	case "plus-expr":
+		return &Ast{
+			Op:   opPlus,
+			Left: genAst(node.Subs[0], input),
+		}
 	case "attr-predict":
 		p := genPredict(node.Subs[1], input)
 		return &Ast{
 			Op:      opPredict,
 			Predict: p,
+		}
+	case "group-expr":
+		return genAst(node.Subs[1], input)
+	case "or-expr":
+		return &Ast{
+			Op:    opOr,
+			Left:  genAst(node.Subs[0], input),
+			Right: genAst(node.Subs[2], input),
 		}
 	default:
 		panic("not handle parse node " + node.Name)
@@ -200,6 +222,47 @@ func genPredict(node *paza.Node, input *paza.Input) func(node *Node) bool {
 	return nil
 }
 
-func genProgram(ast *Ast) (Program, error) {
-	return nil, nil
+func genProgram(ast *Ast, baseAddr int) Program {
+	switch ast.Op {
+	case opConcat:
+		p1 := genProgram(ast.Left, baseAddr)
+		p2 := genProgram(ast.Right, baseAddr+len(p1))
+		return append(p1, p2...)
+	case opPredict:
+		return []Inst{
+			{Predict, ast.Predict, 0, 0},
+		}
+	case opStar:
+		ep := genProgram(ast.Left, baseAddr+1)
+		p := []Inst{
+			{Split, nil, baseAddr + 1, baseAddr + 1 + len(ep) + 1},
+		}
+		p = append(p, ep...)
+		p = append(p, Inst{Jump, nil, baseAddr, 0})
+		return p
+	case opOption:
+		ep := genProgram(ast.Left, baseAddr+1)
+		p := []Inst{
+			{Split, nil, baseAddr + 1, baseAddr + 1 + len(ep)},
+		}
+		p = append(p, ep...)
+		return p
+	case opPlus:
+		p := genProgram(ast.Left, baseAddr)
+		p = append(p, Inst{Split, nil, baseAddr, baseAddr + len(p) + 1})
+		return p
+	case opOr:
+		p1 := genProgram(ast.Left, baseAddr+1)
+		p2 := genProgram(ast.Right, baseAddr+1+len(p1)+1)
+		p := []Inst{
+			{Split, nil, baseAddr + 1, baseAddr + 1 + len(p1) + 1},
+		}
+		p = append(p, p1...)
+		p = append(p, Inst{Jump, nil, baseAddr + 1 + len(p1) + 1 + len(p2), 0})
+		p = append(p, p2...)
+		return p
+	default:
+		panic("not handled ast Op " + ast.Op.String())
+	}
+	return nil
 }
